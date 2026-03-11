@@ -1,12 +1,14 @@
 // client/src/pages/AddOpportunity.jsx
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/useAuth";
 import API from "../services/api";
 
 const TYPES = ["Job", "Internship", "Hackathon", "Scholarship"];
 
 export default function AddOpportunity() {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [form, setForm] = useState({
     title: "",
@@ -20,14 +22,6 @@ export default function AddOpportunity() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-
-  const user = useMemo(() => {
-    try {
-      return JSON.parse(localStorage.getItem("user") || "null");
-    } catch {
-      return null;
-    }
-  }, []);
 
   const isAdmin = user?.role === "admin";
 
@@ -187,9 +181,7 @@ export default function AddOpportunity() {
               className="mt-1 w-full border px-4 py-2.5 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
               required
             />
-            <p className="text-xs text-gray-500 mt-1">
-              Example: “Google”
-            </p>
+            <p className="text-xs text-gray-500 mt-1">Example: “Google”</p>
           </div>
         </div>
 
@@ -212,11 +204,12 @@ export default function AddOpportunity() {
                 </option>
               ))}
             </select>
-            
           </div>
 
           <div>
-            <label className="text-sm text-gray-700 font-medium">Deadline</label>
+            <label className="text-sm text-gray-700 font-medium">
+              Deadline
+            </label>
             <input
               type="date"
               name="deadline"
@@ -224,11 +217,12 @@ export default function AddOpportunity() {
               onChange={handleChange}
               className="mt-1 w-full border px-4 py-2.5 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
             />
-            
           </div>
 
           <div>
-            <label className="text-sm text-gray-700 font-medium">Apply Link</label>
+            <label className="text-sm text-gray-700 font-medium">
+              Apply Link
+            </label>
             <input
               name="link"
               value={form.link}
@@ -236,7 +230,6 @@ export default function AddOpportunity() {
               placeholder="https://company.com/careers/apply"
               className="mt-1 w-full border px-4 py-2.5 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
             />
-            
           </div>
         </div>
 
@@ -260,7 +253,8 @@ export default function AddOpportunity() {
         <div className="mt-8 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
           <div className="text-xs text-gray-500">
             <span className="font-semibold">Access rule:</span> Only accounts in{" "}
-            <code className="bg-gray-100 px-1 rounded">ADMIN_EMAILS</code> can add.
+            <code className="bg-gray-100 px-1 rounded">ADMIN_EMAILS</code> can
+            add.
           </div>
 
           <button

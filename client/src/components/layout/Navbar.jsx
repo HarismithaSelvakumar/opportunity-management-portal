@@ -1,31 +1,27 @@
 // client/src/components/layout/Navbar.jsx
-import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../contexts/useAuth";
 
 export default function Navbar() {
   const navigate = useNavigate();
-
-  const user = useMemo(() => {
-    try {
-      return JSON.parse(localStorage.getItem("user") || "null");
-    } catch {
-      return null;
-    }
-  }, []);
+  const { user } = useAuth();
 
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+    // Trigger auth change event for same-tab updates
+    window.dispatchEvent(new Event("authChanged"));
     navigate("/", { replace: true });
   };
 
-  const roleLabel = user?.role === "admin" ? "ADMIN" : "USER";
-
+  const roleLabel = user?.role?.toUpperCase();
   return (
     <header className="bg-white border-b px-6 py-4 flex items-center justify-between">
       <div className="flex flex-col">
         <div className="flex items-center gap-3">
-          <h1 className="text-lg font-bold text-gray-900">Opportunity Portal</h1>
+          <h1 className="text-lg font-bold text-gray-900">
+            Opportunity Portal
+          </h1>
 
           {user?.role && (
             <span

@@ -25,6 +25,8 @@ export default function Login() {
   const saveSessionAndGo = (data) => {
     localStorage.setItem("token", data.token);
     localStorage.setItem("user", JSON.stringify(data.user));
+    // Dispatch custom event so AuthContext listener updates
+    window.dispatchEvent(new Event("authChanged"));
     navigate("/dashboard");
   };
 
@@ -82,7 +84,9 @@ export default function Login() {
               type="button"
               onClick={() => setMode("user")}
               className={`px-3 py-1.5 rounded-lg text-sm ${
-                mode === "user" ? "bg-white shadow font-semibold" : "text-gray-600"
+                mode === "user"
+                  ? "bg-white shadow font-semibold"
+                  : "text-gray-600"
               }`}
             >
               User

@@ -30,6 +30,8 @@ export default function Register() {
       // ✅ store token + user
       localStorage.setItem("token", res.data.token);
       localStorage.setItem("user", JSON.stringify(res.data.user));
+      // Dispatch custom event so AuthContext listener updates
+      window.dispatchEvent(new Event("authChanged"));
 
       navigate("/dashboard");
     } catch (err) {

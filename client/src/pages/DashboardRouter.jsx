@@ -1,13 +1,13 @@
+import { useAuth } from "../contexts/useAuth";
 import Dashboard from "./Dashboard";
 import AdminDashboard from "./AdminDashboard";
 import ContributorDashboard from "./ContributorDashboard";
 
 export default function DashboardRouter() {
-  let user = null;
-  try {
-    user = JSON.parse(localStorage.getItem("user") || "null");
-  } catch {
-    user = null;
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return <div>Loading...</div>;
   }
 
   const role = user?.role;

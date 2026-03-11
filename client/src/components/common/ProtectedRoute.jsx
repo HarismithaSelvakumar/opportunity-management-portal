@@ -1,26 +1,26 @@
 // client/src/components/common/ProtectedRoute.jsx
 import { Navigate, Outlet } from "react-router-dom";
+import { useAuth } from "../../contexts/useAuth";
+import AccessDenied from "../../pages/AccessDenied";
 
 export default function ProtectedRoute({ allowedRoles }) {
-  const token = localStorage.getItem("token");
+  const { user, token, loading } = useAuth();
 
-  let user = null;
-  try {
-    user = JSON.parse(localStorage.getItem("user") || "null");
-  } catch {
-    user = null;
+  // Still loading auth state
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   }
 
   // If not logged in
-  if (!token || token === "null" || token === "undefined" || !user) {
+  if (!token || !user) {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     return <Navigate to="/" replace />;
   }
 
-  // Role check (admin routes)
+  // Role check - show 403 Access Denied page
   if (allowedRoles && !allowedRoles.includes(user.role)) {
-    return <Navigate to="/dashboard" replace />;
+    return <AccessDenied />;
   }
 
   return <Outlet />;
