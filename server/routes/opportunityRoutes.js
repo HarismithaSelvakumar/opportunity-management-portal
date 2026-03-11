@@ -4,45 +4,108 @@ const router = express.Router();
 const Opportunity = require("../models/Opportunity");
 const authMiddleware = require("../middleware/authMiddleware");
 const requireAdmin = require("../middleware/requireAdmin");
-const requireContributor = require("../middleware/requireContributor");
+const requireContributorOrAdmin = require("../middleware/requireContributorOrAdmin");
 
 /* ------------------------------------------------------------------
-   ✅ GET Opportunities (role-based visibility)
+   GET opportunities (role-based visibility + pagination + filtering)
    - user: only APPROVED
    - contributor: APPROVED + own submissions (PENDING/REJECTED)
    - admin: ALL
+   
+   Query params:
+   - page: 1 (default)
+   - limit: 10 (default)
+   - type: Internship, Job, Hackathon, Scholarship
+   - company: search string
 ------------------------------------------------------------------- */
 router.get("/", authMiddleware, async (req, res) => {
   try {
     const role = req.user.role;
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.max(1, Math.min(100, parseInt(req.query.limit) || 10));
+    const skip = (page - 1) * limit;
 
     let filter = {};
-
+    
+    // Role-based visibility
     if (role === "user") {
       filter = { approvalStatus: "APPROVED" };
     } else if (role === "contributor") {
       filter = {
-        $or: [
-          { approvalStatus: "APPROVED" },
-          { createdBy: req.user._id }, // contributor can see own pending/rejected
-        ],
+        $or: [{ approvalStatus: "APPROVED" }, { createdBy: req.user._id }],
       };
     } else if (role === "admin") {
-      filter = {}; // admin sees all
+      filter = {};
     }
 
-    const data = await Opportunity.find(filter).sort({ createdAt: -1 });
-    res.json(data);
+    // Type filter
+    if (req.query.type) {
+      filter.type = req.query.type;
+    }
+
+    // Company search (case-insensitive)
+    if (req.query.company) {
+      filter.company = { $regex: req.query.company, $options: "i" };
+    }
+
+    const [data, total] = await Promise.all([
+      Opportunity.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
+      Opportunity.countDocuments(filter),
+    ]);
+
+    res.json({
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Server error" });
   }
 });
 
 /* ------------------------------------------------------------------
-   ✅ CONTRIBUTOR: SUBMIT Opportunity (PENDING)
+   ADMIN: Create opportunity (direct publish)
+   POST /api/opportunities
+------------------------------------------------------------------- */
+router.post("/", authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const { title, company, type, deadline, link, notes } = req.body;
+
+    if (!title || !company || !type) {
+      return res.status(400).json({ error: "title, company, type required" });
+    }
+
+    const doc = await Opportunity.create({
+      title: String(title).trim(),
+      company: String(company).trim(),
+      type,
+      deadline: deadline ? new Date(deadline) : null,
+      link: link ? String(link).trim() : "",
+      notes: notes ? String(notes).trim() : "",
+
+      createdBy: req.user._id,
+      approvalStatus: "APPROVED",
+      approvedBy: req.user._id,
+      approvedAt: new Date(),
+      rejectedReason: "",
+      rejectedAt: null,
+    });
+
+    res.status(201).json(doc);
+  } catch (err) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+/* ------------------------------------------------------------------
+   CONTRIBUTOR: Submit opportunity (PENDING)
    POST /api/opportunities/submit
 ------------------------------------------------------------------- */
-router.post("/submit", authMiddleware, requireContributor, async (req, res) => {
+router.post("/submit", authMiddleware, requireContributorOrAdmin, async (req, res) => {
   try {
     const { title, company, type, deadline, link, notes } = req.body;
 
@@ -68,25 +131,25 @@ router.post("/submit", authMiddleware, requireContributor, async (req, res) => {
 
     res.status(201).json(doc);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Server error" });
   }
 });
 
 /* ------------------------------------------------------------------
-   ✅ CONTRIBUTOR: My Submissions
+   CONTRIBUTOR: My submissions
    GET /api/opportunities/submissions/me
 ------------------------------------------------------------------- */
-router.get("/submissions/me", authMiddleware, requireContributor, async (req, res) => {
+router.get("/submissions/me", authMiddleware, requireContributorOrAdmin, async (req, res) => {
   try {
     const list = await Opportunity.find({ createdBy: req.user._id }).sort({ createdAt: -1 });
     res.json(list);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Server error" });
   }
 });
 
 /* ------------------------------------------------------------------
-   ✅ ADMIN: View Pending Submissions
+   ADMIN: View pending submissions
    GET /api/opportunities/moderation/pending
 ------------------------------------------------------------------- */
 router.get("/moderation/pending", authMiddleware, requireAdmin, async (req, res) => {
@@ -96,12 +159,12 @@ router.get("/moderation/pending", authMiddleware, requireAdmin, async (req, res)
       .populate("createdBy", "name email role");
     res.json(pending);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Server error" });
   }
 });
 
 /* ------------------------------------------------------------------
-   ✅ ADMIN: Approve Submission
+   ADMIN: Approve submission
    PATCH /api/opportunities/moderation/:id/approve
 ------------------------------------------------------------------- */
 router.patch("/moderation/:id/approve", authMiddleware, requireAdmin, async (req, res) => {
@@ -119,15 +182,14 @@ router.patch("/moderation/:id/approve", authMiddleware, requireAdmin, async (req
     );
 
     if (!updated) return res.status(404).json({ error: "Pending opportunity not found" });
-
     res.json(updated);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Server error" });
   }
 });
 
 /* ------------------------------------------------------------------
-   ✅ ADMIN: Reject Submission (with reason)
+   ADMIN: Reject submission
    PATCH /api/opportunities/moderation/:id/reject
    body: { reason: "..." }
 ------------------------------------------------------------------- */
@@ -149,16 +211,14 @@ router.patch("/moderation/:id/reject", authMiddleware, requireAdmin, async (req,
     );
 
     if (!updated) return res.status(404).json({ error: "Pending opportunity not found" });
-
     res.json(updated);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Server error" });
   }
 });
 
 /* ------------------------------------------------------------------
-   ✅ ADMIN: Update/Delete (for expired listing management)
-   - Admin can edit approved ones, or cleanup rejected/expired etc
+   ADMIN: Update/Delete
 ------------------------------------------------------------------- */
 router.put("/:id", authMiddleware, requireAdmin, async (req, res) => {
   try {
@@ -166,7 +226,7 @@ router.put("/:id", authMiddleware, requireAdmin, async (req, res) => {
     if (!updated) return res.status(404).json({ error: "Not found" });
     res.json(updated);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Server error" });
   }
 });
 
@@ -175,8 +235,9 @@ router.delete("/:id", authMiddleware, requireAdmin, async (req, res) => {
     await Opportunity.findByIdAndDelete(req.params.id);
     res.json({ message: "Deleted" });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Server error" });
   }
 });
 
 module.exports = router;
+

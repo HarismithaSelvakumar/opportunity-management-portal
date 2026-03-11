@@ -4,7 +4,7 @@ const router = express.Router();
 
 const authMiddleware = require("../middleware/authMiddleware");
 const requireAdmin = require("../middleware/requireAdmin");
-const requireContributor = require("../middleware/requireContributor");
+const requireContributorOrAdmin = require("../middleware/requireContributorOrAdmin");
 
 const User = require("../models/User");
 const Opportunity = require("../models/Opportunity");
@@ -55,7 +55,7 @@ router.get("/user", authMiddleware, async (req, res) => {
       upcomingDeadlines,
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Server error" });
   }
 });
 
@@ -65,7 +65,7 @@ router.get("/user", authMiddleware, async (req, res) => {
  * - only their submissions
  * - applicants count per opportunity
  */
-router.get("/contributor", authMiddleware, requireContributor, async (req, res) => {
+router.get("/contributor", authMiddleware, requireContributorOrAdmin, async (req, res) => {
   try {
     const contributorId = req.user._id;
 
@@ -129,7 +129,7 @@ router.get("/contributor", authMiddleware, requireContributor, async (req, res) 
       submissions,
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Server error" });
   }
 });
 
@@ -169,7 +169,7 @@ router.get("/admin", authMiddleware, requireAdmin, async (req, res) => {
       statusCounts,
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Server error" });
   }
 });
 
