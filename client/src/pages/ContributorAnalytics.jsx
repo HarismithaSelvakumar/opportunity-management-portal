@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import API from "../services/api";
+import Spinner from "../components/common/Spinner";
+import ErrorBox from "../components/common/ErrorBox";
 
 export default function ContributorAnalytics() {
   const [data, setData] = useState(null);
@@ -14,7 +16,9 @@ export default function ContributorAnalytics() {
         const res = await API.get("/dashboard/contributor");
         setData(res.data);
       } catch (e) {
-        setErr(e?.response?.data?.error || "Failed to load contributor analytics");
+        setErr(
+          e?.response?.data?.error || "Failed to load contributor analytics",
+        );
       } finally {
         setLoading(false);
       }
@@ -23,35 +27,46 @@ export default function ContributorAnalytics() {
   }, []);
 
   const rows = useMemo(() => data?.submissions || [], [data]);
-  const approvalCounts = data?.approvalCounts || { PENDING: 0, APPROVED: 0, REJECTED: 0 };
+  const approvalCounts = data?.approvalCounts || {
+    PENDING: 0,
+    APPROVED: 0,
+    REJECTED: 0,
+  };
 
-  if (loading) return <div className="bg-white p-6 rounded-xl shadow">Loading analytics...</div>;
+  if (loading) return <Spinner message="Loading analytics..." />;
 
   if (err)
     return (
-      <div className="bg-white p-6 rounded-xl shadow">
-        <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg">{err}</div>
+      <div className="p-6">
+        <ErrorBox message={err} />
       </div>
     );
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Contributor Analytics</h1>
+        <h1 className="text-3xl font-bold text-gray-900">
+          Contributor Analytics
+        </h1>
         <p className="text-gray-600 mt-1">
           Shows applicants only for opportunities you posted (ownership-based).
         </p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-5">
-        <Card title="Total Submissions" value={data?.totals?.mySubmissions || 0} />
+        <Card
+          title="Total Submissions"
+          value={data?.totals?.mySubmissions || 0}
+        />
         <Card title="Pending" value={approvalCounts.PENDING || 0} />
         <Card title="Approved" value={approvalCounts.APPROVED || 0} />
         <Card title="Rejected" value={approvalCounts.REJECTED || 0} />
       </div>
 
       {rows.length === 0 ? (
-        <div className="bg-white p-6 rounded-xl shadow text-gray-500">No submissions yet.</div>
+        <div className="bg-white p-6 rounded-xl shadow text-gray-500">
+          No submissions yet.
+        </div>
       ) : (
         <div className="bg-white shadow rounded-2xl overflow-hidden">
           <table className="w-full text-left">
@@ -75,7 +90,9 @@ export default function ContributorAnalytics() {
                     <Badge status={o.approvalStatus} />
                   </td>
                   <td className="p-4 font-semibold">{o.applicants}</td>
-                  <td className="p-4 text-sm text-gray-600">{o.rejectedReason || "-"}</td>
+                  <td className="p-4 text-sm text-gray-600">
+                    {o.rejectedReason || "-"}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -84,9 +101,11 @@ export default function ContributorAnalytics() {
       )}
 
       <div className="bg-white shadow rounded-2xl p-6">
-        <h2 className="text-lg font-semibold text-gray-900">Top Opportunities (by applicants)</h2>
+        <h2 className="text-lg font-semibold text-gray-900">
+          Top Opportunities (by applicants)
+        </h2>
 
-        {(!data?.topByApplicants || data.topByApplicants.length === 0) ? (
+        {!data?.topByApplicants || data.topByApplicants.length === 0 ? (
           <p className="text-gray-500 mt-3">No applicants yet.</p>
         ) : (
           <div className="mt-4 overflow-x-auto">
@@ -131,7 +150,9 @@ function Badge({ status }) {
     REJECTED: "bg-red-50 text-red-800 border-red-200",
   };
   return (
-    <span className={`text-xs px-2 py-0.5 rounded-full border font-semibold ${map[status] || "bg-gray-50 border-gray-200 text-gray-700"}`}>
+    <span
+      className={`text-xs px-2 py-0.5 rounded-full border font-semibold ${map[status] || "bg-gray-50 border-gray-200 text-gray-700"}`}
+    >
       {status}
     </span>
   );

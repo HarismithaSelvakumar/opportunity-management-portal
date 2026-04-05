@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import API from "../services/api";
+import Spinner from "../components/common/Spinner";
+import ErrorBox from "../components/common/ErrorBox";
 import {
   ResponsiveContainer,
   PieChart,
@@ -24,33 +26,18 @@ const STATUS_ORDER = [
 ];
 
 export default function Dashboard() {
-  const [opps, setOpps] = useState([]);
-  const [apps, setApps] = useState([]);
+  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
-  // read user from localStorage
-  const user = useMemo(() => {
-    try {
-      return JSON.parse(localStorage.getItem("user") || "null");
-    } catch {
-      return null;
-    }
-  }, []);
-
-  // fetch real data
+  // fetch dashboard payload from backend
   useEffect(() => {
     const load = async () => {
       setLoading(true);
       setErr("");
       try {
-        const [oppRes, appRes] = await Promise.all([
-          API.get("/opportunities"),
-          API.get("/applications/me"),
-        ]);
-
-        setOpps(Array.isArray(oppRes.data) ? oppRes.data : []);
-        setApps(Array.isArray(appRes.data) ? appRes.data : []);
+        const res = await API.get("/dashboard/user");
+        setData(res.data);
       } catch (e) {
         setErr(e?.response?.data?.error || "Failed to load dashboard data");
       } finally {
@@ -61,53 +48,18 @@ export default function Dashboard() {
     load();
   }, []);
 
-  // -------- Normalize apps (Portal + External)
-  const normalizedApps = useMemo(() => {
-    return apps.map((a) => {
-      const opp = a.opportunityId;
-      const isExternal = !opp;
+  // the server already returns totals, statusCounts, and upcomingDeadlines
+  const statusCounts = useMemo(() => data?.statusCounts || {}, [data]);
+  const totalOpportunities = data?.totals?.totalOpportunities || 0;
+  const totalApplications = data?.totals?.myApplications || 0;
 
-      return {
-        id: a._id,
-        source: isExternal ? "External" : "Portal",
-        status: a.status || "Applied",
-
-        title: isExternal ? (a.externalTitle || "-") : (opp?.title || "-"),
-        company: isExternal ? (a.externalCompany || "-") : (opp?.company || "-"),
-        type: isExternal ? (a.externalType || "-") : (opp?.type || "-"),
-
-        // deadline comes from opportunity deadline (portal) OR externalDeadline
-        deadline: isExternal ? a.externalDeadline : opp?.deadline,
-
-        // createdAt used for trend
-        createdAt: a.createdAt,
-      };
-    });
-  }, [apps]);
-
-  // ------- Status counts
-  const statusCounts = useMemo(() => {
-    const counts = {};
-    STATUS_ORDER.forEach((s) => (counts[s] = 0));
-
-    for (const a of normalizedApps) {
-      const st = a.status || "Applied";
-      counts[st] = (counts[st] || 0) + 1;
-    }
-    return counts;
-  }, [normalizedApps]);
-
-  const totalOpportunities = opps.length;
-  const totalApplications = normalizedApps.length;
-
-  // ------- Success metrics
+  // success metrics (offer + selected) can still be derived from statusCounts
   const offers = statusCounts["Offer"] || 0;
   const selected = statusCounts["Selected"] || 0;
   const rejected = statusCounts["Rejected"] || 0;
 
   const successRate = useMemo(() => {
     if (totalApplications === 0) return 0;
-    // success = Offer + Selected (you can adjust definition)
     const success = offers + selected;
     return Math.round((success / totalApplications) * 100);
   }, [offers, selected, totalApplications]);
@@ -119,91 +71,40 @@ export default function Dashboard() {
     }));
   }, [statusCounts]);
 
-  // ------- Trend line: applications by month
+  // trend line similar to before, but only need createdAt from backend applications
   const lineData = useMemo(() => {
     const bucket = new Map();
-
-    for (const a of normalizedApps) {
+    const apps = data?.applications || [];
+    for (const a of apps) {
       const d = a?.createdAt ? new Date(a.createdAt) : null;
       if (!d || Number.isNaN(d.getTime())) continue;
-
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
       bucket.set(key, (bucket.get(key) || 0) + 1);
     }
-
     const keys = Array.from(bucket.keys()).sort();
     return keys.map((k) => ({
       month: k,
       applications: bucket.get(k),
     }));
-  }, [normalizedApps]);
+  }, [data]);
 
-  // ------- Upcoming deadlines (next 14 days) from BOTH:
-  // 1) Opportunities list deadlines
-  // 2) External application deadlines
-  const upcomingDeadlines = useMemo(() => {
-    const now = new Date();
-    const limit = new Date();
-    limit.setDate(now.getDate() + 14);
+  const upcomingDeadlines = useMemo(
+    () => data?.upcomingDeadlines || [],
+    [data],
+  );
 
-    const items = [];
-
-    // (A) Opportunity deadlines (for visibility)
-    for (const o of opps) {
-      if (!o?.deadline) continue;
-      const d = new Date(o.deadline);
-      if (Number.isNaN(d.getTime())) continue;
-      if (d >= now && d <= limit) {
-        items.push({
-          key: `opp-${o._id}`,
-          source: "Opportunity",
-          title: o.title,
-          company: o.company,
-          type: o.type,
-          deadline: d,
-        });
-      }
-    }
-
-    // (B) External application deadlines
-    for (const a of normalizedApps) {
-      if (a.source !== "External") continue;
-      if (!a.deadline) continue;
-
-      const d = new Date(a.deadline);
-      if (Number.isNaN(d.getTime())) continue;
-      if (d >= now && d <= limit) {
-        items.push({
-          key: `ext-${a.id}`,
-          source: "External Application",
-          title: a.title,
-          company: a.company,
-          type: a.type,
-          deadline: d,
-        });
-      }
-    }
-
-    // sort by soonest and take top 10
-    items.sort((x, y) => x.deadline - y.deadline);
-    return items.slice(0, 10);
-  }, [opps, normalizedApps]);
+  // if backend doesn't provide arrays yet, keep backwards compatibility by
+  // allowing manual computation, but normally data.applications will exist.
 
   // ------- UI
   if (loading) {
-    return (
-      <div className="bg-white rounded-xl shadow p-6 text-gray-700">
-        Loading dashboard...
-      </div>
-    );
+    return <Spinner message="Loading dashboard..." />;
   }
 
   if (err) {
     return (
-      <div className="bg-white rounded-xl shadow p-6">
-        <div className="text-red-700 bg-red-50 border border-red-200 p-4 rounded-lg">
-          {err}
-        </div>
+      <div className="p-6">
+        <ErrorBox message={err} />
         <p className="text-sm text-gray-500 mt-3">
           Tip: Ensure backend is running on port 5000 and you are logged in.
         </p>
@@ -259,8 +160,13 @@ export default function Dashboard() {
             Based on when you created applications (portal + external).
           </p>
 
-          <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-72 min-h-[18rem]">
+            <ResponsiveContainer
+              width="100%"
+              height="100%"
+              minHeight={200}
+              minWidth={0}
+            >
               <LineChart data={lineData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" />
@@ -273,7 +179,8 @@ export default function Dashboard() {
 
           {lineData.length === 0 && (
             <p className="text-sm text-gray-500 mt-3">
-              No trend yet — apply or add an external application to see updates.
+              No trend yet — apply or add an external application to see
+              updates.
             </p>
           )}
         </div>
@@ -287,8 +194,13 @@ export default function Dashboard() {
             Distribution of your applications by stage.
           </p>
 
-          <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-72 min-h-[18rem]">
+            <ResponsiveContainer
+              width="100%"
+              height="100%"
+              minHeight={200}
+              minWidth={0}
+            >
               <PieChart>
                 <Pie
                   data={pieData}
@@ -304,7 +216,8 @@ export default function Dashboard() {
 
           {pieData.length === 0 && (
             <p className="text-sm text-gray-500 mt-3">
-              No applications found — once you apply or add external, this chart will populate.
+              No applications found — once you apply or add external, this chart
+              will populate.
             </p>
           )}
         </div>
@@ -331,7 +244,9 @@ export default function Dashboard() {
         </div>
 
         {upcomingDeadlines.length === 0 ? (
-          <div className="mt-4 text-gray-500">No deadlines in the next 14 days.</div>
+          <div className="mt-4 text-gray-500">
+            No deadlines in the next 14 days.
+          </div>
         ) : (
           <div className="mt-4 divide-y">
             {upcomingDeadlines.map((x) => (
@@ -367,9 +282,10 @@ export default function Dashboard() {
       <div className="bg-gray-50 border border-gray-200 text-gray-700 p-5 rounded-2xl">
         <div className="font-semibold mb-1">Analytics notes</div>
         <div className="text-sm leading-relaxed">
-          <b>Success Rate</b> is computed as <b>(Offer + Selected) / Total Applications</b>.
-          You can explain this in viva as a simple KPI for application progress.
-          Rejected count: <b>{rejected}</b>.
+          <b>Success Rate</b> is computed as{" "}
+          <b>(Offer + Selected) / Total Applications</b>. You can explain this
+          in viva as a simple KPI for application progress. Rejected count:{" "}
+          <b>{rejected}</b>.
         </div>
       </div>
     </div>

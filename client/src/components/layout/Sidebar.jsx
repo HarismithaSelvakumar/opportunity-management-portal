@@ -32,23 +32,29 @@ export default function Sidebar() {
 
         {/* USER */}
         {role === "user" && (
-          <SidebarItem to="/applications">My Applications</SidebarItem>
+          <>
+            <SidebarItem to="/applications">My Applications</SidebarItem>
+          </>
         )}
 
-        {/* CONTRIBUTOR + ADMIN */}
-        {(role === "contributor" || role === "admin") && (
+        {/* CONTRIBUTOR */}
+        {role === "contributor" && (
           <>
             <SidebarItem to="/submissions">My Submissions</SidebarItem>
-            <SidebarItem to="/submit">
-              {role === "admin" ? "Add Opportunity" : "Submit Opportunity"}
-            </SidebarItem>
+            <SidebarItem to="/submit">Submit Opportunity</SidebarItem>
             <SidebarItem to="/contributor-analytics">Analytics</SidebarItem>
           </>
         )}
 
-        {/* ADMIN ONLY */}
+        {/* ADMIN */}
         {role === "admin" && (
-          <SidebarItem to="/moderation">Moderation</SidebarItem>
+          <>
+            <SidebarItem to="/moderation">Moderation</SidebarItem>
+            <SidebarItem to="/contributor-requests">
+              Contributor Requests
+            </SidebarItem>
+            <SidebarItem to="/contributors">Contributor Profiles</SidebarItem>
+          </>
         )}
 
         <SidebarItem to="/calendar">Calendar</SidebarItem>

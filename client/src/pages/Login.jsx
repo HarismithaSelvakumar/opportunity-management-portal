@@ -6,16 +6,20 @@ import API from "../services/api";
 export default function Login() {
   const navigate = useNavigate();
 
-  const [mode, setMode] = useState("user"); // "user" | "admin"
+  const [mode, setMode] = useState("user"); // "user" | "admin" | "contributor"
   const [form, setForm] = useState({ email: "", password: "" });
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const subtitle = useMemo(() => {
-    return mode === "admin"
-      ? "Admin access: manage and verify opportunities."
-      : "Track applications, deadlines, notes, and interview stages in one place.";
+    if (mode === "admin") {
+      return "Admin access: manage and verify opportunities.";
+    }
+    if (mode === "contributor") {
+      return "Sign in with your contributor account.";
+    }
+    return "Track applications, deadlines, notes, and interview stages in one place.";
   }, [mode]);
 
   const handleChange = (e) => {
@@ -38,9 +42,14 @@ export default function Login() {
     try {
       const res = await API.post("/auth/login", form);
 
-      // UI mode is just a hint; backend role is the truth.
       if (mode === "admin" && res.data.user.role !== "admin") {
         setError("This account is not an admin.");
+        setLoading(false);
+        return;
+      }
+
+      if (mode === "contributor" && res.data.user.role !== "contributor") {
+        setError("This account does not have contributor access.");
         setLoading(false);
         return;
       }
@@ -66,6 +75,11 @@ export default function Login() {
         return;
       }
 
+      if (mode === "contributor" && res.data.user.role !== "contributor") {
+        setError("This Google account does not have contributor access.");
+        return;
+      }
+
       saveSessionAndGo(res.data);
     } catch (err) {
       setError(err?.response?.data?.error || "Google login failed");
@@ -75,10 +89,10 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4">
       <div className="w-full max-w-md bg-white rounded-2xl shadow p-8">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-2xl font-bold text-gray-800">Sign in</h2>
 
-          {/* User/Admin toggle */}
+          {/* User/Admin/Contributor toggle */}
           <div className="flex bg-gray-100 rounded-xl p-1">
             <button
               type="button"
@@ -101,6 +115,17 @@ export default function Login() {
               }`}
             >
               Admin
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("contributor")}
+              className={`px-3 py-1.5 rounded-lg text-sm ${
+                mode === "contributor"
+                  ? "bg-white shadow font-semibold"
+                  : "text-gray-600"
+              }`}
+            >
+              Contributor
             </button>
           </div>
         </div>
@@ -148,13 +173,6 @@ export default function Login() {
             {loading ? "Signing in..." : "Sign in"}
           </button>
         </form>
-
-        {/* Divider */}
-        <div className="my-6 flex items-center gap-3">
-          <div className="h-px bg-gray-200 flex-1" />
-          <div className="text-xs text-gray-400">OR</div>
-          <div className="h-px bg-gray-200 flex-1" />
-        </div>
 
         {/* Google login */}
         <div className="flex justify-center">

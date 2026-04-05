@@ -17,8 +17,13 @@ export default function LineChartCard({ dataFromApi = [] }) {
     <div className="bg-white shadow rounded-xl p-5">
       <h2 className="text-md font-semibold mb-3">Applications Over Time</h2>
 
-      <div className="h-56">
-        <ResponsiveContainer width="100%" height="100%">
+      <div className="h-56 min-h-[14rem]">
+        <ResponsiveContainer
+          width="100%"
+          height="100%"
+          minHeight={180}
+          minWidth={0}
+        >
           <LineChart data={data}>
             <XAxis dataKey="month" />
             <YAxis allowDecimals={false} />

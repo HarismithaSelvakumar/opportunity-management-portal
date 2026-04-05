@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import API from "../services/api";
+import Spinner from "../components/common/Spinner";
+import ErrorBox from "../components/common/ErrorBox";
 
 export default function ContributorDashboard() {
   const [data, setData] = useState(null);
@@ -15,7 +17,9 @@ export default function ContributorDashboard() {
         const res = await API.get("/dashboard/contributor");
         setData(res.data);
       } catch (e) {
-        setErr(e?.response?.data?.error || "Failed to load contributor dashboard");
+        setErr(
+          e?.response?.data?.error || "Failed to load contributor dashboard",
+        );
       } finally {
         setLoading(false);
       }
@@ -23,32 +27,46 @@ export default function ContributorDashboard() {
     load();
   }, []);
 
-  if (loading) return <div className="bg-white p-6 rounded-xl shadow">Loading contributor dashboard...</div>;
+  if (loading) return <Spinner message="Loading contributor dashboard..." />;
 
   if (err)
     return (
-      <div className="bg-white p-6 rounded-xl shadow">
-        <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg">{err}</div>
+      <div className="p-6">
+        <ErrorBox message={err} />
       </div>
     );
 
   const totals = data?.totals || {};
-  const approvalCounts = data?.approvalCounts || { PENDING: 0, APPROVED: 0, REJECTED: 0 };
+  const approvalCounts = data?.approvalCounts || {
+    PENDING: 0,
+    APPROVED: 0,
+    REJECTED: 0,
+  };
   const top = data?.topByApplicants || [];
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Contributor Dashboard</h1>
-          <p className="text-gray-600 mt-1">Track your submissions and applicant interest.</p>
+          <h1 className="text-3xl font-bold text-gray-900">
+            Contributor Dashboard
+          </h1>
+          <p className="text-gray-600 mt-1">
+            Track your submissions and applicant interest.
+          </p>
         </div>
 
         <div className="flex gap-3">
-          <Link to="/submit" className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 text-sm font-medium">
+          <Link
+            to="/submit"
+            className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 text-sm font-medium"
+          >
             + Submit Opportunity
           </Link>
-          <Link to="/contributor-analytics" className="px-4 py-2 rounded-lg bg-white border hover:bg-gray-50 text-sm font-medium">
+          <Link
+            to="/contributor-analytics"
+            className="px-4 py-2 rounded-lg bg-white border hover:bg-gray-50 text-sm font-medium"
+          >
             View Analytics
           </Link>
         </div>
@@ -62,8 +80,12 @@ export default function ContributorDashboard() {
       </div>
 
       <div className="bg-white shadow rounded-2xl p-6">
-        <h2 className="text-lg font-semibold text-gray-900">Top Posted Opportunities</h2>
-        <p className="text-sm text-gray-500 mt-1">Ranked by number of applicants.</p>
+        <h2 className="text-lg font-semibold text-gray-900">
+          Top Posted Opportunities
+        </h2>
+        <p className="text-sm text-gray-500 mt-1">
+          Ranked by number of applicants.
+        </p>
 
         {top.length === 0 ? (
           <p className="text-gray-500 mt-4">No applicants yet.</p>

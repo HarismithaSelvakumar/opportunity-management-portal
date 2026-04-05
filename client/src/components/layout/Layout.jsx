@@ -1,4 +1,4 @@
-import { Outlet } from "react-router-dom";
+import { Link, Outlet } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import Navbar from "./Navbar";
 
@@ -13,6 +13,14 @@ export default function Layout() {
           <Outlet />
         </main>
       </div>
+
+      <Link
+        to="/profile"
+        className="fixed left-4 bottom-4 z-50 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg transition hover:bg-blue-700"
+        aria-label="Go to profile"
+      >
+        <span className="text-lg font-bold">OP</span>
+      </Link>
     </div>
   );
 }

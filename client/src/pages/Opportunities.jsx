@@ -21,7 +21,7 @@ export default function Opportunities() {
     setError("");
     try {
       const res = await API.get("/opportunities");
-      setOpportunities(res.data || []);
+      setOpportunities(res.data.data || []);
     } catch (err) {
       setError(err?.response?.data?.error || "Failed to load opportunities");
     } finally {
@@ -30,12 +30,12 @@ export default function Opportunities() {
   };
 
   const fetchMyApplications = async () => {
-    if (!isUser) return; // only users apply
+    if (!isUser) return;
     setAppsLoading(true);
     try {
       const res = await API.get("/applications/me");
       const ids = new Set(
-        (res.data || []).map((a) => a.opportunityId?._id || a.opportunityId)
+        (res.data || []).map((a) => a.opportunityId?._id || a.opportunityId),
       );
       setAppliedIds(ids);
     } catch {
@@ -72,12 +72,14 @@ export default function Opportunities() {
   };
 
   if (loading) return <div>Loading opportunities...</div>;
-  if (error)
+
+  if (error) {
     return (
       <div className="bg-red-50 text-red-700 p-4 rounded">
         <strong>Error:</strong> {error}
       </div>
     );
+  }
 
   return (
     <div>
@@ -130,7 +132,9 @@ export default function Opportunities() {
                   <td className="p-3">{o.title}</td>
                   <td className="p-3">{o.type}</td>
                   <td className="p-3">
-                    {o.deadline ? new Date(o.deadline).toLocaleDateString() : "-"}
+                    {o.deadline
+                      ? new Date(o.deadline).toLocaleDateString()
+                      : "-"}
                   </td>
 
                   <td className="p-3">
@@ -159,8 +163,8 @@ export default function Opportunities() {
                           {applyingFor === o._id
                             ? "Applying..."
                             : already
-                            ? "Applied"
-                            : "Apply"}
+                              ? "Applied"
+                              : "Apply"}
                         </button>
                       ) : (
                         <span className="text-xs text-gray-500">

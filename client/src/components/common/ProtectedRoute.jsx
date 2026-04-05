@@ -8,7 +8,11 @@ export default function ProtectedRoute({ allowedRoles }) {
 
   // Still loading auth state
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        Loading...
+      </div>
+    );
   }
 
   // If not logged in

@@ -1,8 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import API from "../services/api";
+import Spinner from "../components/common/Spinner";
 
-const STATUS_OPTIONS = ["All", "Saved", "Applied", "Test", "Interview", "Offer", "Selected", "Rejected"];
+const STATUS_OPTIONS = [
+  "All",
+  "Saved",
+  "Applied",
+  "Test",
+  "Interview",
+  "Offer",
+  "Selected",
+  "Rejected",
+];
+const TYPE_OPTIONS = ["Job", "Internship", "Hackathon", "Scholarship"];
 
 export default function MyApplications() {
   const [apps, setApps] = useState([]);
@@ -10,6 +21,18 @@ export default function MyApplications() {
 
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+
+  // Edit modal state
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({
+    externalTitle: "",
+    externalCompany: "",
+    externalType: "",
+    externalLink: "",
+    externalDeadline: "",
+  });
+  const [editError, setEditError] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
 
   const fetchApps = async () => {
     setLoading(true);
@@ -50,9 +73,9 @@ export default function MyApplications() {
 
         source: isExternal ? "External" : "Portal",
 
-        company: isExternal ? (a.externalCompany || "-") : (opp?.company || "-"),
-        title: isExternal ? (a.externalTitle || "-") : (opp?.title || "-"),
-        type: isExternal ? (a.externalType || "-") : (opp?.type || "-"),
+        company: isExternal ? a.externalCompany || "-" : opp?.company || "-",
+        title: isExternal ? a.externalTitle || "-" : opp?.title || "-",
+        type: isExternal ? a.externalType || "-" : opp?.type || "-",
         deadline: isExternal ? a.externalDeadline : opp?.deadline,
         link: isExternal ? a.externalLink : opp?.link,
       };
@@ -68,14 +91,78 @@ export default function MyApplications() {
         a.title.toLowerCase().includes(query) ||
         a.type.toLowerCase().includes(query);
 
-      const matchStatus = statusFilter === "All" ? true : a.status === statusFilter;
+      const matchStatus =
+        statusFilter === "All" ? true : a.status === statusFilter;
 
       return matchQ && matchStatus;
     });
   }, [normalized, q, statusFilter]);
 
+  // Open edit modal for external application
+  const openEditModal = (app) => {
+    const original = apps.find((a) => a._id === app._id);
+    setEditForm({
+      externalTitle: original?.externalTitle || "",
+      externalCompany: original?.externalCompany || "",
+      externalType: original?.externalType || "",
+      externalLink: original?.externalLink || "",
+      externalDeadline: original?.externalDeadline
+        ? new Date(original.externalDeadline).toISOString().split("T")[0]
+        : "",
+    });
+    setEditError("");
+    setEditingId(app._id);
+  };
+
+  const closeEditModal = () => {
+    setEditingId(null);
+    setEditError("");
+  };
+
+  // Validate and submit edit
+  const handleEditSubmit = async () => {
+    setEditError("");
+
+    const { externalTitle, externalCompany, externalLink } = editForm;
+
+    if (!externalTitle.trim()) {
+      setEditError("Title is required");
+      return;
+    }
+
+    if (!externalCompany.trim()) {
+      setEditError("Company is required");
+      return;
+    }
+
+    if (externalLink && !/^https?:\/\/.+/i.test(externalLink.trim())) {
+      setEditError("Link must start with http:// or https://");
+      return;
+    }
+
+    setEditSaving(true);
+    try {
+      await API.patch(`/applications/${editingId}`, {
+        externalTitle: externalTitle.trim(),
+        externalCompany: externalCompany.trim(),
+        externalType: editForm.externalType,
+        externalLink: externalLink.trim() || "",
+        externalDeadline: editForm.externalDeadline
+          ? new Date(editForm.externalDeadline)
+          : null,
+      });
+
+      await fetchApps();
+      closeEditModal();
+    } catch (err) {
+      setEditError(err?.response?.data?.error || "Update failed");
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
   if (loading) {
-    return <div className="bg-white p-6 rounded-xl shadow">Loading applications...</div>;
+    return <Spinner message="Loading applications..." />;
   }
 
   return (
@@ -83,7 +170,9 @@ export default function MyApplications() {
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">My Applications</h1>
-          <p className="text-gray-600 mt-1">Track both portal and external applications.</p>
+          <p className="text-gray-600 mt-1">
+            Track both portal and external applications.
+          </p>
         </div>
 
         <div className="flex gap-3">
@@ -137,6 +226,7 @@ export default function MyApplications() {
                 <th className="p-4">Status</th>
                 <th className="p-4">Deadline</th>
                 <th className="p-4">Notes</th>
+                <th className="p-4">Actions</th>
               </tr>
             </thead>
 
@@ -169,7 +259,9 @@ export default function MyApplications() {
                     <select
                       value={a.status}
                       disabled={a.locked}
-                      onChange={(e) => updateApp(a._id, { status: e.target.value })}
+                      onChange={(e) =>
+                        updateApp(a._id, { status: e.target.value })
+                      }
                       className="border px-3 py-2 rounded-lg w-full"
                     >
                       <option>Saved</option>
@@ -181,28 +273,162 @@ export default function MyApplications() {
                       <option>Rejected</option>
                     </select>
 
-                    {a.locked && <p className="text-xs text-gray-500 mt-1">Final status locked</p>}
+                    {a.locked && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Final status locked
+                      </p>
+                    )}
                   </td>
 
                   <td className="p-4">
-                    {a.deadline ? new Date(a.deadline).toLocaleDateString() : "-"}
+                    {a.deadline
+                      ? new Date(a.deadline).toLocaleDateString()
+                      : "-"}
                   </td>
 
                   <td className="p-4">
                     <textarea
                       defaultValue={a.notes}
                       disabled={a.locked}
-                      onBlur={(e) => updateApp(a._id, { notes: e.target.value })}
+                      onBlur={(e) =>
+                        updateApp(a._id, { notes: e.target.value })
+                      }
                       className="w-full border rounded-lg p-2"
                       rows={3}
                       placeholder="Interview notes..."
                     />
-                    <p className="text-xs text-gray-500 mt-1">Notes save when you click outside.</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Notes save when you click outside.
+                    </p>
+                  </td>
+
+                  <td className="p-4">
+                    {a.source === "External" && !a.locked && (
+                      <button
+                        onClick={() => openEditModal(a)}
+                        className="px-3 py-1 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 text-sm font-medium"
+                      >
+                        Edit
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Edit External Application Modal */}
+      {editingId && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6 space-y-4">
+            <h2 className="text-2xl font-bold text-gray-900">
+              Edit External Application
+            </h2>
+
+            {editError && (
+              <div className="bg-red-50 text-red-700 border border-red-200 p-3 rounded-lg text-sm">
+                {editError}
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Title *
+              </label>
+              <input
+                type="text"
+                value={editForm.externalTitle}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, externalTitle: e.target.value })
+                }
+                className="w-full border rounded-lg px-3 py-2"
+                placeholder="Software Engineer Internship"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Company *
+              </label>
+              <input
+                type="text"
+                value={editForm.externalCompany}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, externalCompany: e.target.value })
+                }
+                className="w-full border rounded-lg px-3 py-2"
+                placeholder="Google"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Type
+              </label>
+              <select
+                value={editForm.externalType}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, externalType: e.target.value })
+                }
+                className="w-full border rounded-lg px-3 py-2 bg-white"
+              >
+                <option value="">Select type</option>
+                {TYPE_OPTIONS.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Link
+              </label>
+              <input
+                type="url"
+                value={editForm.externalLink}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, externalLink: e.target.value })
+                }
+                className="w-full border rounded-lg px-3 py-2"
+                placeholder="https://example.com/apply"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Deadline
+              </label>
+              <input
+                type="date"
+                value={editForm.externalDeadline}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, externalDeadline: e.target.value })
+                }
+                className="w-full border rounded-lg px-3 py-2"
+              />
+            </div>
+
+            <div className="flex gap-3 justify-end pt-4">
+              <button
+                onClick={closeEditModal}
+                disabled={editSaving}
+                className="px-4 py-2 rounded-lg border hover:bg-gray-50 text-sm font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleEditSubmit}
+                disabled={editSaving}
+                className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 text-sm font-medium disabled:opacity-50"
+              >
+                {editSaving ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

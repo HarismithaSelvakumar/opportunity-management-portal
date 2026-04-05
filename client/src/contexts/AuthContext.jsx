@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { AuthContext } from "./auth";
 
+/* Provider component */
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Initialize from localStorage and listen for changes
   useEffect(() => {
     const updateAuth = () => {
       const storedToken = localStorage.getItem("token");
@@ -18,6 +18,7 @@ export function AuthProvider({ children }) {
             ? storedToken
             : null,
         );
+
         setUser(storedUser ? JSON.parse(storedUser) : null);
       } catch {
         setToken(null);
@@ -29,10 +30,10 @@ export function AuthProvider({ children }) {
 
     updateAuth();
 
-    // Listen for storage changes (e.g., from other tabs, or programmatic updates)
+    /* Listen for cross-tab changes */
     window.addEventListener("storage", updateAuth);
 
-    // Custom event for same-tab updates (when we do localStorage.setItem in same tab)
+    /* Listen for same-tab manual updates */
     const handleAuthChange = () => updateAuth();
     window.addEventListener("authChanged", handleAuthChange);
 

@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import API from "../services/api";
+import Spinner from "../components/common/Spinner";
+import ErrorBox from "../components/common/ErrorBox";
 
 export default function Calendar() {
   const [opps, setOpps] = useState([]);
@@ -17,7 +19,7 @@ export default function Calendar() {
           API.get("/applications/me"),
         ]);
 
-        setOpps(Array.isArray(oppRes.data) ? oppRes.data : []);
+        setOpps(Array.isArray(oppRes.data.data) ? oppRes.data.data : []);
         setApps(Array.isArray(appRes.data) ? appRes.data : []);
       } catch (e) {
         setErr(e?.response?.data?.error || "Failed to load calendar data");
@@ -89,7 +91,10 @@ export default function Calendar() {
       .filter((x) => x.date);
   }, [apps]);
 
-  const allEvents = useMemo(() => [...oppEvents, ...appEvents], [oppEvents, appEvents]);
+  const allEvents = useMemo(
+    () => [...oppEvents, ...appEvents],
+    [oppEvents, appEvents],
+  );
 
   const dayBuckets = useMemo(() => {
     const days = [];
@@ -114,19 +119,13 @@ export default function Calendar() {
   }, [allEvents, todayStart]);
 
   if (loading) {
-    return (
-      <div className="bg-white rounded-xl shadow p-6 text-gray-700">
-        Loading calendar...
-      </div>
-    );
+    return <Spinner message="Loading calendar..." />;
   }
 
   if (err) {
     return (
-      <div className="bg-white rounded-xl shadow p-6">
-        <div className="text-red-700 bg-red-50 border border-red-200 p-4 rounded-lg">
-          {err}
-        </div>
+      <div className="p-6">
+        <ErrorBox message={err} />
         <p className="text-sm text-gray-500 mt-3">
           Tip: Ensure backend is running and you are logged in.
         </p>
@@ -137,8 +136,10 @@ export default function Calendar() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-5xl font-bold text-gray-900 tracking-tight">Calendar</h1>
-        <p className="text-[32px] text-gray-600 mt-2">
+        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
+          Calendar
+        </h1>
+        <p className="text-lg text-gray-600 mt-2">
           Upcoming deadlines for the next 14 days.
         </p>
       </div>
@@ -154,7 +155,7 @@ export default function Calendar() {
                 <div className="text-lg uppercase text-gray-600 tracking-wide">
                   {day.date.toLocaleDateString("en-US", { weekday: "short" })}
                 </div>
-                <div className="text-5xl font-bold text-gray-900 mt-1">
+                <div className="text-3xl font-bold text-gray-900 mt-1">
                   {String(day.date.getDate()).padStart(2, "0")}
                 </div>
                 <div className="text-2xl text-gray-600 mt-1">
@@ -164,7 +165,7 @@ export default function Calendar() {
 
               <div className="min-w-0 flex-1 pt-1">
                 {day.events.length === 0 ? (
-                  <p className="text-4xl text-gray-400">No deadlines</p>
+                  <p className="text-xl text-gray-400">No deadlines</p>
                 ) : (
                   <div className="space-y-3">
                     {day.events.map((event) => (
