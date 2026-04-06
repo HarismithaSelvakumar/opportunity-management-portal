@@ -1,6 +1,7 @@
 // client/src/components/layout/Navbar.jsx
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/useAuth";
+import NotificationBell from "./NotificationBell";
 
 export default function Navbar() {
   const navigate = useNavigate();
@@ -48,6 +49,7 @@ export default function Navbar() {
       </div>
 
       <div className="flex items-center gap-3">
+        <NotificationBell />
         <button
           onClick={handleLogout}
           className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition text-sm font-medium"

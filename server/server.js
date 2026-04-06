@@ -59,7 +59,14 @@ app.use(express.json({ limit: "10mb" }));
    ============================================================================ */
 mongoose
   .connect(process.env.MONGO_URI)
-  .then(() => console.log("✅ MongoDB Connected"))
+  .then(() => {
+    console.log("✅ MongoDB Connected");
+    // Start deadline reminder scheduler after DB connection
+    const {
+      startDeadlineScheduler,
+    } = require("./services/deadlineReminderService");
+    startDeadlineScheduler();
+  })
   .catch((err) => {
     console.error("❌ DB Connection Error:", err.message);
     process.exit(1);
@@ -73,12 +80,14 @@ const opportunityRoutes = require("./routes/opportunityRoutes");
 const applicationRoutes = require("./routes/applicationRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
 const contributorRequestRoutes = require("./routes/contributorRequestRoutes");
+const notificationRoutes = require("./routes/notificationRoutes");
 
 app.use("/api/auth", authRoutes);
 app.use("/api/opportunities", opportunityRoutes);
 app.use("/api/applications", applicationRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/contributor-requests", contributorRequestRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 /* ============================================================================
    ⚠️  DEV ROUTES (DISABLED IN PRODUCTION)

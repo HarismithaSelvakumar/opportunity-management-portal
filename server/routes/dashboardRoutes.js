@@ -35,13 +35,41 @@ router.get("/user", authMiddleware, async (req, res) => {
     const next14 = new Date();
     next14.setDate(now.getDate() + 14);
 
-    const upcomingDeadlines = await Opportunity.find({
+    // Get opportunity deadlines
+    const oppDeadlines = await Opportunity.find({
       approvalStatus: "APPROVED",
       deadline: { $gte: now, $lte: next14 },
     })
       .sort({ deadline: 1 })
-      .limit(10)
       .select("title company type deadline");
+
+    // Get external application deadlines (only for current user)
+    const extDeadlines = await Application.find({
+      userId,
+      externalDeadline: { $gte: now, $lte: next14 },
+    })
+      .sort({ externalDeadline: 1 })
+      .select("externalTitle externalCompany externalType externalDeadline");
+
+    // Combine both deadline types
+    const upcomingDeadlines = [
+      ...oppDeadlines.map((o) => ({
+        id: o._id,
+        title: o.title,
+        company: o.company,
+        type: o.type,
+        deadline: o.deadline,
+        source: "opportunity",
+      })),
+      ...extDeadlines.map((a) => ({
+        id: a._id,
+        title: a.externalTitle,
+        company: a.externalCompany,
+        type: a.externalType,
+        deadline: a.externalDeadline,
+        source: "application",
+      })),
+    ].sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
 
     res.json({
       user: {
@@ -180,6 +208,38 @@ router.get("/admin", authMiddleware, requireAdmin, async (req, res) => {
       role: "contributor",
     });
 
+    // Top opportunities by applicant count
+    const topOppsAgg = await Application.aggregate([
+      { $match: { opportunityId: { $ne: null } } },
+      { $group: { _id: "$opportunityId", applicants: { $sum: 1 } } },
+      { $sort: { applicants: -1 } },
+      { $limit: 10 },
+      {
+        $lookup: {
+          from: "opportunities",
+          localField: "_id",
+          foreignField: "_id",
+          as: "opportunity",
+        },
+      },
+      { $unwind: "$opportunity" },
+    ]);
+
+    const topOpportunities = topOppsAgg.map((row) => ({
+      title: row.opportunity.title,
+      company: row.opportunity.company,
+      type: row.opportunity.type,
+      applicants: row.applicants,
+    }));
+
+    // Recent applications (latest 10)
+    const recentApplications = await Application.find()
+      .populate("userId", "name email")
+      .populate("opportunityId", "title company")
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .lean();
+
     res.json({
       admin: {
         id: req.user._id,
@@ -195,6 +255,8 @@ router.get("/admin", authMiddleware, requireAdmin, async (req, res) => {
       },
       statusCounts,
       contributorRequests: contributorRequestCounts,
+      topOpportunities,
+      recentApplications,
     });
   } catch (err) {
     res.status(500).json({ error: "Server error" });

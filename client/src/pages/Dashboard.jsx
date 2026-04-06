@@ -251,7 +251,7 @@ export default function Dashboard() {
           <div className="mt-4 divide-y">
             {upcomingDeadlines.map((x) => (
               <div
-                key={x.key}
+                key={`${x.source}-${x.id}`}
                 className="py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2"
               >
                 <div>
