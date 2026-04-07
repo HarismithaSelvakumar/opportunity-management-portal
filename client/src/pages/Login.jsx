@@ -174,8 +174,15 @@ export default function Login() {
           </button>
         </form>
 
+        {/* Divider */}
+        <div className="mt-6 flex items-center">
+          <div className="flex-1 border-t border-gray-300"></div>
+          <span className="px-3 text-sm text-gray-500 bg-white">or</span>
+          <div className="flex-1 border-t border-gray-300"></div>
+        </div>
+
         {/* Google login */}
-        <div className="flex justify-center">
+        <div className="mt-6 flex justify-center">
           <GoogleLogin
             onSuccess={handleGoogleSuccess}
             onError={() => setError("Google login failed")}
