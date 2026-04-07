@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { Star } from "lucide-react";
 import API from "../services/api";
 import Spinner from "../components/common/Spinner";
 import ErrorBox from "../components/common/ErrorBox";
@@ -123,6 +124,8 @@ export default function AdminDashboard() {
                   <th className="p-3">Title</th>
                   <th className="p-3">Type</th>
                   <th className="p-3">Applicants</th>
+                  <th className="p-3">Avg Rating</th>
+                  <th className="p-3">Total Ratings</th>
                 </tr>
               </thead>
               <tbody>
@@ -132,6 +135,25 @@ export default function AdminDashboard() {
                     <td className="p-3">{o.title}</td>
                     <td className="p-3">{o.type}</td>
                     <td className="p-3 font-semibold">{o.applicants}</td>
+                    <td className="p-3">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{o.ratings?.averageRating || "—"}</span>
+                        <div className="flex gap-0.5">
+                          {[...Array(5)].map((_, i) => (
+                            <Star
+                              key={i}
+                              size={14}
+                              className={
+                                i < Math.round(o.ratings?.averageRating || 0)
+                                  ? "fill-yellow-400 text-yellow-400"
+                                  : "text-gray-300"
+                              }
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="p-3 text-gray-600">{o.ratings?.totalRatings || 0}</td>
                   </tr>
                 ))}
               </tbody>

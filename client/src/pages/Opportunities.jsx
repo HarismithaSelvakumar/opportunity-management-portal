@@ -127,9 +127,23 @@ export default function Opportunities() {
               const already = appliedIds.has(o._id);
 
               return (
-                <tr key={o._id} className="border-t">
-                  <td className="p-3">{o.company}</td>
-                  <td className="p-3">{o.title}</td>
+                <tr key={o._id} className="border-t hover:bg-gray-50">
+                  <td className="p-3">
+                    <Link
+                      to={`/opportunities/${o._id}`}
+                      className="text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      {o.company}
+                    </Link>
+                  </td>
+                  <td className="p-3">
+                    <Link
+                      to={`/opportunities/${o._id}`}
+                      className="text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      {o.title}
+                    </Link>
+                  </td>
                   <td className="p-3">{o.type}</td>
                   <td className="p-3">
                     {o.deadline
@@ -139,6 +153,13 @@ export default function Opportunities() {
 
                   <td className="p-3">
                     <div className="flex items-center gap-3">
+                      <Link
+                        to={`/opportunities/${o._id}`}
+                        className="text-sm px-3 py-1 rounded bg-blue-100 text-blue-700 hover:bg-blue-200"
+                      >
+                        Details
+                      </Link>
+
                       <a
                         href={o.link || "#"}
                         target="_blank"

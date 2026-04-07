@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Star } from "lucide-react";
 import API from "../services/api";
 import Spinner from "../components/common/Spinner";
 import ErrorBox from "../components/common/ErrorBox";
@@ -77,6 +78,8 @@ export default function ContributorAnalytics() {
                 <th className="p-4">Type</th>
                 <th className="p-4">Approval</th>
                 <th className="p-4">Applicants</th>
+                <th className="p-4">Avg Rating</th>
+                <th className="p-4">Total Ratings</th>
                 <th className="p-4">Rejected Reason</th>
               </tr>
             </thead>
@@ -90,6 +93,25 @@ export default function ContributorAnalytics() {
                     <Badge status={o.approvalStatus} />
                   </td>
                   <td className="p-4 font-semibold">{o.applicants}</td>
+                  <td className="p-4">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{o.ratings?.averageRating || "—"}</span>
+                      <div className="flex gap-0.5">
+                        {[...Array(5)].map((_, i) => (
+                          <Star
+                            key={i}
+                            size={14}
+                            className={
+                              i < Math.round(o.ratings?.averageRating || 0)
+                                ? "fill-yellow-400 text-yellow-400"
+                                : "text-gray-300"
+                            }
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="p-4 text-gray-600">{o.ratings?.totalRatings || 0}</td>
                   <td className="p-4 text-sm text-gray-600">
                     {o.rejectedReason || "-"}
                   </td>

@@ -4,6 +4,7 @@ import { useAuth } from "../contexts/useAuth";
 import API from "../services/api";
 import Spinner from "../components/common/Spinner";
 import ErrorBox from "../components/common/ErrorBox";
+import OpportunityRating from "../components/opportunities/OpportunityRating";
 
 export default function OpportunityDetail() {
   const { id } = useParams();
@@ -194,6 +195,12 @@ export default function OpportunityDetail() {
           </p>
         </div>
       )}
+
+      {/* Rating Section */}
+      <OpportunityRating
+        opportunityId={id}
+        isApproved={opp.approvalStatus === "APPROVED"}
+      />
 
       {(role === "contributor" || role === "admin") && (
         <div className="bg-gray-50 border border-gray-200 rounded-2xl p-6 space-y-4">

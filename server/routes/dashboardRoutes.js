@@ -10,6 +10,7 @@ const User = require("../models/User");
 const Opportunity = require("../models/Opportunity");
 const Application = require("../models/Application");
 const ContributorRequest = require("../models/ContributorRequest");
+const Rating = require("../models/Rating");
 
 /**
  * ✅ USER DASHBOARD (only their applications)
@@ -134,6 +135,26 @@ router.get(
         return acc;
       }, {});
 
+      // 3b) Ratings per opportunity (for my opps)
+      const ratingsAgg = await Rating.aggregate([
+        { $match: { opportunityId: { $in: myOppIds } } },
+        {
+          $group: {
+            _id: "$opportunityId",
+            totalRatings: { $sum: 1 },
+            averageRating: { $avg: "$rating" },
+          },
+        },
+      ]);
+
+      const ratingsMap = ratingsAgg.reduce((acc, row) => {
+        acc[String(row._id)] = {
+          totalRatings: row.totalRatings,
+          averageRating: parseFloat(row.averageRating.toFixed(1)),
+        };
+        return acc;
+      }, {});
+
       // 4) Table rows
       const submissions = myOpps.map((o) => ({
         opportunityId: o._id,
@@ -144,6 +165,7 @@ router.get(
         rejectedReason: o.rejectedReason || "",
         createdAt: o.createdAt,
         applicants: applicantsMap[String(o._id)] || 0,
+        ratings: ratingsMap[String(o._id)] || { totalRatings: 0, averageRating: 0 },
       }));
 
       // 5) Top by applicants
@@ -208,7 +230,7 @@ router.get("/admin", authMiddleware, requireAdmin, async (req, res) => {
       role: "contributor",
     });
 
-    // Top opportunities by applicant count
+    // Top opportunities by applicant count with ratings
     const topOppsAgg = await Application.aggregate([
       { $match: { opportunityId: { $ne: null } } },
       { $group: { _id: "$opportunityId", applicants: { $sum: 1 } } },
@@ -225,11 +247,34 @@ router.get("/admin", authMiddleware, requireAdmin, async (req, res) => {
       { $unwind: "$opportunity" },
     ]);
 
+    // Get ratings for top opportunities
+    const topOppIds = topOppsAgg.map((row) => row._id);
+    const ratingsAgg = await Rating.aggregate([
+      { $match: { opportunityId: { $in: topOppIds } } },
+      {
+        $group: {
+          _id: "$opportunityId",
+          totalRatings: { $sum: 1 },
+          averageRating: { $avg: "$rating" },
+        },
+      },
+    ]);
+
+    const ratingsMap = ratingsAgg.reduce((acc, row) => {
+      acc[String(row._id)] = {
+        totalRatings: row.totalRatings,
+        averageRating: parseFloat(row.averageRating.toFixed(1)),
+      };
+      return acc;
+    }, {});
+
     const topOpportunities = topOppsAgg.map((row) => ({
+      opportunityId: row._id,
       title: row.opportunity.title,
       company: row.opportunity.company,
       type: row.opportunity.type,
       applicants: row.applicants,
+      ratings: ratingsMap[String(row._id)] || { totalRatings: 0, averageRating: 0 },
     }));
 
     // Recent applications (latest 10)

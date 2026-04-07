@@ -182,3 +182,104 @@ API.delete("/applications/123");
 - [ ] Test PATCH external fields (title, company, link, deadline)
 - [ ] Test PATCH with invalid URL (should fail with 400)
 - [ ] Verify error responses don't leak internal messages
+
+---
+
+## ✅ 5) Opportunity Rating System
+
+**Features:**
+- Users can rate approved opportunities on a 5-star scale (1-5 stars)
+- Optional comment/review with each rating
+- Each user can have one rating per opportunity (editable/replaceable)
+- Rating statistics visible to contributors (for their opportunities) and admins (for all opportunities)
+- Real-time rating display on opportunity detail page
+
+**New Model:**
+- `Rating` - Stores user ratings with unique index on (opportunityId, userId)
+
+**New API Routes:**
+
+```
+GET /api/ratings/opportunity/:opportunityId
+  - Get rating statistics and all ratings for an opportunity
+  - Returns: totalRatings, averageRating, ratingCounts, individual ratings
+
+POST /api/ratings
+  - Submit or update a rating
+  - Requires auth
+  - Body: { opportunityId, rating: 1-5, comment: "optional" }
+  - Prevents duplicate: updates if user already rated
+
+GET /api/ratings/:opportunityId/my-rating
+  - Get current user's rating for an opportunity
+  - Requires auth
+  - Returns: { hasRated, rating }
+
+DELETE /api/ratings/:ratingId
+  - Delete a rating (ownership check)
+  - Requires auth
+```
+
+**Dashboard Updates:**
+
+- **Contributor Analytics**: Shows `Avg Rating` and `Total Ratings` per submitted opportunity
+- **Admin Dashboard**: Shows `Avg Rating` and `Total Ratings` for top opportunities
+- **User Dashboard**: Can rate opportunities from detail page
+
+**Frontend Components:**
+
+- `OpportunityRating.jsx`: 
+  - 5-star rating selector with hover preview
+  - Optional comment field
+  - Displays rating statistics and breakdown
+  - Shows recent reviews
+  - Mark as read/delete functionality (own ratings)
+
+**Usage Example:**
+
+```javascript
+// Submit a rating
+API.post("/ratings", {
+  opportunityId: "6123abc",
+  rating: 4,
+  comment: "Great opportunity, good pay!"
+});
+
+// Get ratings for an opportunity
+API.get("/ratings/opportunity/6123abc");
+
+// Get user's rating
+API.get("/ratings/6123abc/my-rating");
+
+// Delete a rating
+API.delete("/ratings/ratingId");
+```
+
+**Example Response:**
+
+```json
+{
+  "opportunityId": "6123abc",
+  "totalRatings": 12,
+  "averageRating": 4.2,
+  "ratingCounts": {
+    "1": 0,
+    "2": 1,
+    "3": 2,
+    "4": 5,
+    "5": 4
+  },
+  "ratings": [
+    {
+      "id": "rating123",
+      "userId": "user456",
+      "userName": "John Doe",
+      "rating": 5,
+      "comment": "Excellent opportunity!",
+      "createdAt": "2026-04-06T10:30:00Z"
+    }
+  ]
+}
+```
+
+---

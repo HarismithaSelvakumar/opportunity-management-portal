@@ -81,6 +81,7 @@ const applicationRoutes = require("./routes/applicationRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
 const contributorRequestRoutes = require("./routes/contributorRequestRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
+const ratingRoutes = require("./routes/ratingRoutes");
 
 app.use("/api/auth", authRoutes);
 app.use("/api/opportunities", opportunityRoutes);
@@ -88,6 +89,7 @@ app.use("/api/applications", applicationRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/contributor-requests", contributorRequestRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/ratings", ratingRoutes);
 
 /* ============================================================================
    ⚠️  DEV ROUTES (DISABLED IN PRODUCTION)
