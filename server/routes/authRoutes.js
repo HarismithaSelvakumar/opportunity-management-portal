@@ -212,6 +212,12 @@ router.post("/login", async (req, res) => {
         .json({ error: "Use Google login for this account" });
     }
 
+    if (typeof user.password !== "string" || !user.password.trim()) {
+      return res.status(400).json({
+        error: "This account does not have a password set. Use Google login or reset the password.",
+      });
+    }
+
     const ok = await bcrypt.compare(password, user.password || "");
     if (!ok) return res.status(401).json({ error: "Invalid credentials" });
 
@@ -237,6 +243,7 @@ router.post("/login", async (req, res) => {
       },
     });
   } catch (err) {
+    console.error("[POST /auth/login]", err.message);
     res.status(500).json({ error: "Server error" });
   }
 });
