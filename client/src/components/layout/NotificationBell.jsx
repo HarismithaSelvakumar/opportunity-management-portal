@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { Bell, BellRing } from "lucide-react";
 import { useAuth } from "../../contexts/useAuth";
 import api from "../../services/api";
@@ -7,23 +7,35 @@ export default function NotificationBell() {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  const fetchNotifications = useCallback(async () => {
-    try {
-      const response = await api.get("/notifications");
-      setNotifications(response.data);
-      setUnreadCount(response.data.filter((n) => !n.isRead).length);
-    } catch (error) {
-      console.error("Error fetching notifications:", error);
-    }
-  }, []);
+  const unreadCount = notifications.filter((notification) => !notification.isRead).length;
 
   useEffect(() => {
-    if (user) {
-      fetchNotifications();
+    if (!user) {
+      return;
     }
-  }, [user, fetchNotifications]);
+
+    let isCancelled = false;
+
+    const loadNotifications = async () => {
+      try {
+        const response = await api.get("/notifications");
+
+        if (!isCancelled) {
+          setNotifications(response.data);
+        }
+      } catch (error) {
+        if (!isCancelled) {
+          console.error("Error fetching notifications:", error);
+        }
+      }
+    };
+
+    void loadNotifications();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [user]);
 
   const markAsRead = async (id) => {
     try {
@@ -31,7 +43,6 @@ export default function NotificationBell() {
       setNotifications((prev) =>
         prev.map((n) => (n._id === id ? { ...n, isRead: true } : n)),
       );
-      setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch (error) {
       console.error("Error marking notification as read:", error);
     }
@@ -41,10 +52,6 @@ export default function NotificationBell() {
     try {
       await api.delete(`/notifications/${id}`);
       setNotifications((prev) => prev.filter((n) => n._id !== id));
-      setUnreadCount(
-        (prev) =>
-          prev - (notifications.find((n) => n._id === id)?.isRead ? 0 : 1),
-      );
     } catch (error) {
       console.error("Error deleting notification:", error);
     }

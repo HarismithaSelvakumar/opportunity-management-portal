@@ -49,7 +49,7 @@ export default function Navbar() {
       </div>
 
       <div className="flex items-center gap-3">
-        <NotificationBell />
+        <NotificationBell key={user?._id || user?.email || "guest"} />
         <button
           onClick={handleLogout}
           className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition text-sm font-medium"
